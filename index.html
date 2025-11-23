@@ -1,483 +1,69 @@
 <!doctype html>
-<!--
-MAD ANT ART ATTACK
-Single-file HTML you can open/edit in VSCode.
-Features:
-- Full-screen canvas "WindowsPaint-like" blank page
-- Two modes: Pen (draw with chosen color & size) and Egg (drop "realistic" chicken eggs from above that splatter paint)
-- Eggs have randomized sizes & splatter sizes; eggs look egg-like until they hit the canvas
-- Random ant frenzies: ants swarm across canvas, leaving chaotic trails and occasionally disturbing (erasing/smudging) paint
-- Controls: Mode selector, Color picker, Pen size slider, Drop Egg button, Toggle Egg Rain, Clear, Save
-
-Drop this file into VSCode and open in browser. Enjoy!
--->
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MAD ANT ART ATTACK </title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MAD ANT ART ATTACK</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ui">
-    <div class="group">
-      <div class="title">ɱąɖ ąŋɬ ąཞɬ ąɬɬąƈƙ <img src="assets/img/Art_Attack_(1).webp" style="width: 20px; height: 15px; margin: 0; position:static;"></div>
-    </div>
-
-    <div class="group">
-      <label for="mode">mode</label>
-      <select id="mode" title="Tool mode">
-        <option value="pen">pen — draw</option>
-        <option value="egg">egg — throw paint eggs</option>
-      </select>
-    </div>
-
-    <div class="group">
-      <label for="color">color</label>
-      <input id="color" type="color" value="#ff0000" title="Choose paint color">
-    </div>
-
-    <div class="group" id="penControls">
-      <label for="size">pen size</label>
-      <input id="size" type="range" min="1" max="80" value="6">
-      <span id="sizeLabel">6</span>px
-    </div>
-
-    <div class="group">
-      <button id="dropEgg">drop egg!</button>
-      <button id="toggleRain">start egg rain!</button>
-    </div>
-
-    <div class="group">
-      <button id="clear">clear</button>
-      <button id="save" class="primary">save</button>
-    </div>
-  </div>
-
-  <div class="rightbar">
-    <div style="background:var(--ui-bg);padding:8px;border-radius:8px;backdrop-filter:blur(6px);">ants: <span id="antCount">0</span> <span class="ant-counter"></span></div>
-  </div>
-
-  <div id="stage">
-    <canvas id="paint" width="1200" height="700"></canvas>
-  </div>
-
-  <div class="credits">• use mouse or touch •</div>
-
-<script>
-// --- Utilities ---
-const canvas = document.getElementById('paint');
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
-let DPR = Math.max(1, window.devicePixelRatio || 1);
-function resizeCanvasToDisplaySize(){
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.round(rect.width * DPR);
-  canvas.height = Math.round(rect.height * DPR);
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-resizeCanvasToDisplaySize();
-window.addEventListener('resize', resizeCanvasToDisplaySize);
-
-// Fill canvas with white background once
-function resetCanvas(){
-  ctx.save();
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle = '#ffffff'; 
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.restore();
-}
-resetCanvas();
-
-// UI refs
-const modeSel = document.getElementById('mode');
-const colorIn = document.getElementById('color');
-const sizeIn = document.getElementById('size');
-const sizeLabel = document.getElementById('sizeLabel');
-const dropEggBtn = document.getElementById('dropEgg');
-const toggleRainBtn = document.getElementById('toggleRain');
-const clearBtn = document.getElementById('clear');
-const saveBtn = document.getElementById('save');
-const antCountSpan = document.getElementById('antCount');
-const penControls = document.getElementById('penControls');
-
-sizeIn.addEventListener('input', ()=> sizeLabel.textContent = sizeIn.value );
-modeSel.addEventListener('change', ()=>{
-  penControls.style.display = modeSel.value === 'pen' ? 'flex' : 'none';
-  canvas.style.cursor = modeSel.value === 'pen' ? 'crosshair' : 'cell';
-});
-modeSel.dispatchEvent(new Event('change'));
-
-// --- Drawing (Pen) ---
-let drawing = false;
-let last = {x:0,y:0};
-function getPointerPos(e){
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-  const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-  return {x,y};
-}
-
-canvas.addEventListener('pointerdown', (e)=>{
-  if(modeSel.value !== 'pen') return;
-  drawing = true;
-  const p = getPointerPos(e);
-  last = p;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = colorIn.value;
-  ctx.lineWidth = sizeIn.value;
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-});
-canvas.addEventListener('pointermove', (e)=>{
-  if(!drawing) return;
-  const p = getPointerPos(e);
-  // smooth simple
-  ctx.lineTo(p.x, p.y);
-  ctx.stroke();
-  last = p;
-});
-canvas.addEventListener('pointerup', (e)=>{ if(drawing) { drawing=false; ctx.closePath(); } });
-canvas.addEventListener('pointercancel', ()=>{ drawing=false; ctx.closePath(); });
-canvas.addEventListener("click", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  spawnEgg({ x, impactY: y });
-});
-
-// --- Eggs: physics, rendering & splatter ---
-let eggs = [];
-let eggRain = false;
-const gravity = 1200; // px/s^2 (scaled)
-
-function spawnEgg({x=null, color=null, vx=0}){
-  const rect = canvas.getBoundingClientRect();
-  const eggSize = randRange(18, 20); // egg radius-ish
-  const spawnX = x===null ? randRange(eggSize, rect.width - eggSize) : x;
-  const targetY = randRange(50, rect.height - 50); // random point, not touching edges
-  const egg = {
-    x: spawnX,
-    y: -eggSize*1.2,
-    impactY: targetY,      // ← assign random Y
-    vx: vx + randRange(-60,60),
-    vy: randRange(60,180),
-    r: eggSize,
-    color: color || colorIn.value,
-    rotation: randRange(-0.6,0.6),
-    rotationSpeed: randRange(-3,3),
-    alive:true
-  };
-  eggs.push(egg);
-}
+<div class="ui" role="toolbar" aria-label="drawing controls">
+<div class="group">
+<div class="title"></div>
+</div>
 
 
-dropEggBtn.addEventListener('click', ()=> spawnEgg({}));
+<div class="group">
+<label for="mode">mode</label>
+<select id="mode" title="Tool mode">
+  <option value="egg">egg — throw paint eggs</option>
+<option value="pen">pen — draw</option>
 
-let rainInterval = null;
-toggleRainBtn.addEventListener('click', ()=>{
-  eggRain = !eggRain;
-  toggleRainBtn.textContent = eggRain ? 'stop egg rain!!!' : 'start egg rain!';
-  if(eggRain){
-    rainInterval = setInterval(()=>{
-      // random small bursts
-      const n = Math.random()>0.85? randRange(3,8) : randRange(1,2);
-      for(let i=0;i<n;i++) spawnEgg({});
-    }, 350);
-  } else {
-    clearInterval(rainInterval);
-    rainInterval = null;
-  }
-});
-
-function randRange(a,b){ return a + Math.random()*(b-a); }
-
-// Egg rendering as egg-like ellipse with highlight
-function drawEgg(egg){
-  const {x,y,r,rotation,color} = egg;
-  ctx.save();
-  ctx.translate(x,y);
-  ctx.rotate(egg.rotation * 0.2);
-  // egg shape using bezier path
-  ctx.beginPath();
-  ctx.ellipse(0,0,r,r*1.25,0,0,Math.PI*2);
-  // subtle shading: radial gradient
-  const g = ctx.createRadialGradient(-r*0.2,-r*0.3,r*0.2,0,0,r*1.6);
-  g.addColorStop(0,'rgba(255,255,255,0.95)');
-  g.addColorStop(0.3,'rgba(255,255,255,0.6)');
-  g.addColorStop(1,'rgba(240,240,240,0.9)');
-  ctx.fillStyle = g;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fill();
-
-  // shell outline
-  ctx.lineWidth = Math.max(1, r*0.05);
-  ctx.strokeStyle = 'rgba(200,200,200,0.9)';
-  ctx.stroke();
-
-  // small speckles
-  const speckles = Math.floor(r/6);
-  ctx.fillStyle = 'rgba(120,110,100,0.15)';
-  for(let i=0;i<speckles;i++){
-    const sx = randRange(-r*0.6,r*0.6);
-    const sy = randRange(-r*0.4,r*0.6);
-    ctx.beginPath(); ctx.ellipse(sx,sy,Math.max(1,r*0.03),Math.max(1,r*0.02),0,0,Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
-}
-
-function createSplatter(x,y,color,radius){
-  // splatter: many radial droplets + central blob
-  const spl = [];
-  const blobRadius = radius * randRange(0.6,1.1);
-  // central blob
-  ctx.save();
-  ctx.beginPath();
-  ctx.fillStyle = color;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.ellipse(x,y,blobRadius,blobRadius*0.7,randRange(0,Math.PI*2),0,Math.PI*2);
-  ctx.fill();
-  ctx.restore();
-
-  // droplets
-  const count = Math.floor(randRange(6,14));
-  for(let i=0;i<count;i++){
-    const angle = Math.random()*Math.PI*2;
-    const dist = randRange(radius*0.3,radius*2.2);
-    const dropr = randRange(radius*0.06,radius*0.4);
-    const dx = x + Math.cos(angle)*dist;
-    const dy = y + Math.sin(angle)*dist;
-    ctx.beginPath(); ctx.ellipse(dx,dy,dropr,dropr*randRange(0.5,1.4),0,0,Math.PI*2); ctx.fillStyle = color; ctx.fill();
-  }
-
-  // light splatter strokes
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = color;
-  for(let i=0;i<Math.floor(radius/4);i++){
-    const a = Math.random()*Math.PI*2;
-    ctx.beginPath(); ctx.moveTo(x+Math.cos(a)*randRange(0,blobRadius), y+Math.sin(a)*randRange(0,blobRadius));
-    ctx.lineTo(x+Math.cos(a)*randRange(blobRadius,blobRadius*1.6), y+Math.sin(a)*randRange(blobRadius,blobRadius*1.6));
-    ctx.lineWidth = randRange(0.5,2.5);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-// When eggs hit canvas: splatter using their color
-function handleEggHit(egg){
-  const x = egg.x;
-  const y = egg.impactY; // ground
-  // scale the splatter size by egg size
-  const radius = egg.r * randRange(0.9,2.0);
-  createSplatter(x,y - randRange(0, radius*0.2), egg.color, radius);
-}
-
-// --- Ant system ---
-let ants = [];
-let antFrenzyTimer = 0;
-
-function spawnAnt(x=null,y=null){
-  const rect = canvas.getBoundingClientRect();
-  const ax = x===null ? (Math.random()>0.5? -20 : rect.width+20) : x;
-  const ay = y===null ? randRange(20, rect.height-20) : y;
-  const ant = {
-    x: ax, y: ay,
-    vx: (ax<0 ? randRange(80,180) : randRange(-180,-80)),
-    vy: randRange(-50,50),
-    life: randRange(2,6),
-    t:0,
-    jitter: Math.random()*400,
-    size: randRange(3,7)
-  };
-  ants.push(ant);
-  antCountSpan.textContent = ants.length;
-}
-
-// spawn random ant frenzies at randomized intervals
-function scheduleAntFrenzy(){
-  const next = randRange(5000, 22000); // 5s-22s
-  setTimeout(()=>{
-    startFrenzy(randRange(20,80));
-    scheduleAntFrenzy();
-  }, next);
-}
-
-function startFrenzy(count){
-  // spawn many ants from both sides
-  for(let i=0;i<count;i++){
-    setTimeout(()=>{ spawnAnt(); }, i*50 + Math.random()*400);
-  }
-}
-
-// Ants when crossing paint occasionally disturb it: small erasures or smudges
-function antDisturb(ant){
-  if(Math.random() < 0.06){
-    // small erase circle where the ant is
-    ctx.save();
-    ctx.beginPath();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.ellipse(ant.x, ant.y, ant.size*1.6, ant.size*0.9, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-  }
-  
-}
-
-// Spawn initial small ants occasionally
-setInterval(()=>{ if(Math.random()<0.25) spawnAnt(); }, 3000);
-scheduleAntFrenzy();
-
-// --- Main loop: physics and drawing overlay (eggs & ants) ---
-let lastTS = performance.now();
-function tick(ts){
-  const dt = Math.min(0.04, (ts - lastTS)/1000);
-  lastTS = ts;
-
-  // update eggs
-  for(let i=eggs.length-1;i>=0;i--){
-    const e = eggs[i];
-    if(!e.alive) { eggs.splice(i,1); continue; }
-    e.vy += gravity * dt;
-    e.x += e.vx * dt;
-    e.y += e.vy * dt;
-    e.rotation += e.rotationSpeed * dt;
-    // check hit ground
-    
-    if (e.y >= e.impactY){
-      // splatter and remove
-      handleEggHit(e);
-      e.alive = false;
-      eggs.splice(i,1);
-      continue;
-    }
-  }
-
-  // ants update
-  for(let i=ants.length-1;i>=0;i--){
-    const a = ants[i];
-    a.t += dt;
-    // jittery movement
-    a.vx += Math.sin(a.t*20 + a.jitter) * randRange(-30,30) * dt;
-    a.vy += Math.cos(a.t*16 + a.jitter*0.5) * randRange(-30,30) * dt;
-    a.x += a.vx * dt;
-    a.y += a.vy * dt;
-    a.life -= dt;
-    // boundary kill
-    const rect = canvas.getBoundingClientRect();
-    if(a.x < -60 || a.x > rect.width + 60 || a.y < -60 || a.y > rect.height + 60 || a.life <= 0){ ants.splice(i,1); continue; }
-    // disturb paint occasionally
-    antDisturb(a);
-  }
-  antCountSpan.textContent = ants.length;
-
-  // render overlay: eggs in-flight & ants on top
-  // We don't clear the canvas — painting accumulates. We'll use a separate overlay canvas pattern by re-drawing only dynamic elements onto an off-screen buffer? Simpler: draw eggs & ants directly each frame but without clearing the painted content.
-  // To avoid redrawing everything, we'll draw eggs & ants on a temporary composite, then clear that layer by resetting a separate overlay canvas. Simpler route: use single canvas but keep permanent paint in an offscreen buffer. Implement offscreen buffer.
-
-  requestAnimationFrame(tick);
-}
-
-// To separate transient visuals (eggs in flight, ants) from permanent paint, create an overlay canvas layered above main paint surface.
-(function createOverlay(){
-  const overlay = document.createElement('canvas');
-  overlay.id = 'overlay';
-  overlay.style.position = 'absolute';
-  overlay.style.left = canvas.style.left || canvas.getBoundingClientRect().left + 'px';
-  overlay.style.top = canvas.style.top || canvas.getBoundingClientRect().top + 'px';
-  overlay.style.pointerEvents = 'none';
-  overlay.style.width = canvas.style.width;
-  overlay.style.height = canvas.style.height;
-  overlay.width = canvas.width;
-  overlay.height = canvas.height;
-  overlay.style.zIndex = 50;
-  canvas.parentElement.appendChild(overlay);
-  const octx = overlay.getContext('2d');
-
-  function overlayResize(){
-    const rect = canvas.getBoundingClientRect();
-    overlay.style.left = rect.left + 'px';
-    overlay.style.top = rect.top + 'px';
-    overlay.width = Math.round(rect.width * DPR);
-    overlay.height = Math.round(rect.height * DPR);
-    overlay.style.width = rect.width + 'px';
-    overlay.style.height = rect.height + 'px';
-    octx.setTransform(DPR,0,0,DPR,0,0);
-  }
-  overlayResize();
-  window.addEventListener('resize', overlayResize);
-
-  // overlay draw loop
-  function drawOverlay(){
-    octx.clearRect(0,0,overlay.width,overlay.height);
-    // draw eggs in flight
-    for(const e of eggs){ drawEggOverlay(octx, e); }
-    // draw ants
-    for(const a of ants){ drawAnt(octx, a); }
-    requestAnimationFrame(drawOverlay);
-  }
-  drawOverlay();
-
-  // helper: draw egg on overlay as more translucent to look like in-flight
-  function drawEggOverlay(octx, egg){
-    octx.save();
-    octx.translate(egg.x, egg.y);
-    octx.rotate(egg.rotation*0.2);
-    octx.beginPath();
-    octx.ellipse(0,0,egg.r,egg.r*1.25,0,0,Math.PI*2);
-    octx.fillStyle = 'rgba(250,250,250,0.95)';
-    octx.fill();
-    octx.lineWidth = Math.max(1, egg.r*0.04);
-    octx.strokeStyle = 'rgba(200,200,200,0.9)'; octx.stroke();
-    octx.restore();
-  }
-  function drawAnt(octx, a){
-    octx.save();
-    octx.beginPath();
-    const s = a.size;
-    octx.fillStyle = 'rgba(15,15,15,0.95)';
-    // simple three-segment ant body
-    octx.ellipse(a.x - s*0.6, a.y, s*0.6, s*0.5, 0, 0, Math.PI*2);
-    octx.ellipse(a.x + s*0.1, a.y, s*0.7, s*0.45, 0, 0, Math.PI*2);
-    octx.ellipse(a.x + s*0.9, a.y, s*0.5, s*0.35, 0, 0, Math.PI*2);
-    octx.fill();
-    octx.restore();
-  }
-
-})();
-
-// Start the main tick loop (physics only — rendering of transient elements done in overlay)
-lastTS = performance.now();
-requestAnimationFrame(tick);
-
-// Clearing & saving
-clearBtn.addEventListener('click', ()=>{
-  // clear to white
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
-});
-
-saveBtn.addEventListener('click', ()=>{
-  // merge overlay contents onto a clone of the main canvas, so eggs in flight/ants are not saved (only splatters and pen marks are permanent). If you want to include overlay, we could composite overlay as well. We'll save the permanent canvas only.
-  const link = document.createElement('a');
-  link.download = 'mad-ant-art-attack.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-});
-
-// Utility: drop eggs periodically if eggRain is true is handled by interval above
-
-// Nice touch: make keyboard shortcuts
-window.addEventListener('keydown',(e)=>{
-  if(e.key === 'e') { modeSel.value = 'egg'; modeSel.dispatchEvent(new Event('change')) }
-  if(e.key === 'p') { modeSel.value = 'pen'; modeSel.dispatchEvent(new Event('change')) }
-  if(e.key === ' ') { if(modeSel.value === 'egg') spawnEgg({}); }
-});
+</select>
+</div>
 
 
-</script>
+<div class="group">
+<label for="color">color</label>
+<input id="color" type="color" value="#ff0000" title="Choose paint color">
+</div>
+
+
+<div class="group" id="penControls">
+<label for="size">pen size</label>
+<input id="size" type="range" min="1" max="80" value="6">
+<span id="sizeLabel">6</span>px
+</div>
+
+
+<div class="group">
+<button id="dropEgg">drop egg!</button>
+<button id="toggleRain">start egg rain!</button>
+<button id="toggleYolk">color</button>
+</div>
+
+
+<div class="group">
+<button id="clear">clear</button>
+<button id="save" class="primary">save</button>
+</div>
+</div>
+
+
+<div class="rightbar">
+<div aria-hidden="false">ants: <span id="antCount">0</span> <span class="ant-counter"></span></div>
+</div>
+
+
+<div id="stage">
+<!-- Permanent paint canvas -->
+<canvas id="paint"></canvas>
+<!-- Transient overlay for eggs/ants (keeps rendering simple & stable) -->
+<canvas id="overlay"></canvas>
+</div>
+
+
+<div class="credits">• use mouse or touch •</div>
+
+
+<script src="script.js" defer></script>
 </body>
 </html>
