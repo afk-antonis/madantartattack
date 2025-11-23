@@ -1,0 +1,271 @@
+/* style.css for MAD ANT ART ATTACK
+   - Externalized from inline <style> in your HTML
+   - Toggle custom fonts using the examples below (uncomment one)
+*/
+
+/* =========================
+   CUSTOM FONT (uncomment one option)
+   ========================= */
+
+/* Option A — Google Fonts (example)
+   1) Uncomment the @import line below
+   2) replace the family name in --ui-font variable if needed */
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap'); */
+
+/* Option B — Local font files (example)
+   Place 'MyCustomFont.woff2' next to style.css and uncomment.
+*/
+/*
+@font-face {
+  font-family: 'MyCustomFont';
+  src: url('./fonts/MyCustomFont.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+@font-face {
+  font-family: 'Rag';
+  src: url('../fonts/Rag-Regular.woff2') format('woff2'),
+       url('../fonts/Rag-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Rag';
+  src: url('assets/fonts/Rag-Italic.woff2') format('woff2'),
+       url('assets/fonts/Rag-Italic.woff') format('woff');
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Rag';
+  src: url('assets/fonts/Rag-BoldItalic.woff2') format('woff2'),
+       url('assets/fonts/Rag-BoldItalic.woff') format('woff');
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Rag';
+  src: url('assets/fonts/Rag-Bold.woff2') format('woff2'),
+       url('assets/fonts/Rag-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal; 
+}
+
+@font-face {
+  font-family: 'Rag';
+  src: url('assets/fonts/Rag-Black.woff2') format('woff2'),
+       url('assets/fonts/Rag-Black.woff') format('woff');
+  font-weight: 900;
+  font-style: normal; 
+}
+/* =========================
+   Root variables
+   ========================= */
+:root {
+  --ui-bg: rgba(149, 149, 149, 0.6);
+  --ui-fg: #ffffff;
+  --accent: #ff4757;
+  --font: 'Rag', Arial;
+  --ui-font: 'Rag', -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --toolbar-height: 40px; /* toolbar & ant-counter matched height */
+  --stage-bg-top: #f8f8f4;
+  --stage-bg-bottom: #ffffff;
+}
+
+/* =========================
+   Global base
+   ========================= */
+* { box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--ui-font);
+  background: #111;
+  color: var(--ui-fg);
+  overflow: hidden;
+}
+
+/* =========================
+   Stage & canvas
+   ========================= */
+/* Stage spans the full viewport and holds the canvas */
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* subtle paper gradient background */
+  background: linear-gradient(180deg, var(--stage-bg-top) 0%, var(--stage-bg-bottom) 100%);
+  z-index: 1;
+}
+
+/* Main paint canvas fills the page fully (no borders) */
+canvas#paint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  /* remove rounded corners and heavy shadow so the canvas covers everything */
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #ffffff;
+  touch-action: none;
+  cursor: crosshair;
+  display: block;
+  z-index: 2; /* below UI but above stage background */
+}
+
+/* Overlay canvas (transient eggs/ants) */
+canvas#overlay,
+canvas[id="overlay"] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* =========================
+   Floating UI (toolbar) & ant counter
+   ========================= */
+
+/* Toolbar on the left */
+.ui {
+  position: fixed;
+  left: 20px;
+  top: 20px;
+  height: var(--toolbar-height);
+  min-height: var(--toolbar-height);
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  padding: 10px;
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 24px rgba(108, 108, 108, 0.5);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 60;
+  max-width: calc(100% - 60px);
+}
+
+/* keep control groups inline and compact */
+.ui .group {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  white-space: nowrap;
+}
+
+/* Simple form elements */
+label { font-size: 12px; opacity: 0.95; display:inline-block; }
+input[type="range"] { width: 120px; }
+input[type="color"] { width: 36px; height: 28px; padding: 0; border-radius: 4px; border: 0; cursor:pointer; }
+
+/* Buttons */
+button, .mode-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--ui-fg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+button.primary { background: var(--accent); border-color: transparent; color: #fff; }
+
+/* Title visual */
+.title { font-size: 16px; font-weight: 800; letter-spacing: 4px; margin-right: 8px; color: var(--accent); }
+
+/* Ant counter on the right (mirror of toolbar) */
+.rightbar {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* the internal counter card kept the same height as toolbar */
+.rightbar > div {
+  height: var(--toolbar-height);
+  min-height: var(--toolbar-height);
+  background: var(--ui-bg);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  z-index: 61;
+}
+
+/* ensure .ant-counter text sizing */
+.ant-counter { font-size: 12px; margin-left: 6px; opacity: 0.95; }
+
+/* =========================
+   Footer credits overlay
+   ========================= */
+.credits {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  color: var(--accent);
+  font-size: 12px;
+  z-index: 60;
+  pointer-events: none;
+  background: rgba(0,0,0,0.15);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+/* =========================
+   Ant visuals (for user-supplied ant image)
+   ========================= */
+.ant {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 70; /* above overlay/eggs so ant sprites are visible */
+  transform-origin: center;
+}
+
+/* =========================
+   Responsive tweaks
+   ========================= */
+@media (max-width: 900px) {
+  .ui { left: 10px; top: 10px; padding: 8px; height: 52px; min-height: 52px; }
+  .rightbar > div { top: 10px; height: 52px; min-height: 52px; }
+  input[type="range"] { width: 96px; }
+}
+
+/* =========================
+   Accessibility / focus states
+   ========================= */
+button:focus, select:focus, input:focus {
+  outline: 2px solid rgba(255,255,255,0.12);
+  outline-offset: 2px;
+}
+
+/* =========================
+   Small helper utilities (use in JS by toggling classes)
+   ========================= */
+.hidden { display: none !important; }
+.no-cursor { cursor: default !important; }
+
+/* End of style.css */
