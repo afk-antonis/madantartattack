@@ -17,9 +17,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleRainBtn = document.getElementById('toggleRain');
   const clearBtn = document.getElementById('clear');
   const saveBtn = document.getElementById('save');
-  const antCountSpan = document.getElementById('antCount');
   const penControls = document.getElementById('penControls');
   const uiBar = document.querySelector('.ui');
+// --- Toggle Toolbar System ---
+const toolbarNav = document.getElementById('toolbarNav');
+const toolbarIcon = document.getElementById('toolbarIcon');
+
+const toolbarIcons = [
+    'assets/icons/egg1.png',
+    'assets/icons/egg2.png',
+    'assets/icons/egg3.png',
+    'assets/icons/egg4.png',
+    'assets/icons/egg5.png',
+    'assets/icons/egg6.png',
+    'assets/icons/egg7.png'
+];
+
+let currentIconIndex = 0;
+
+document.getElementById('toolbarToggle').addEventListener('click', () => {
+    // toggle collapse
+    toolbarNav.classList.toggle('collapsed');
+
+    // pick a different random icon
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * toolbarIcons.length);
+    } while (newIndex === currentIconIndex);
+
+    currentIconIndex = newIndex;
+    toolbarIcon.src = toolbarIcons[currentIconIndex];
+});
 
   // device pixel ratio
   let DPR = Math.max(1, window.devicePixelRatio || 1);
@@ -45,7 +73,7 @@ toggleYolkBtn.addEventListener('click', () => {
 
   // --- Egg types (Option B: each has its own paint / yolk color) ---
   const eggTypes = {
-    white:   { name: 'white', shell: '#fff6f6ff', yolk: '#FFD700', r: 18 },
+    white:   { img: 'egg-white.png', name: 'white', shell: '#fff6f6ff', yolk: '#FFD700', r: 18 },
     brown:   { name: 'brown', shell: '#ffbd82', yolk: '#FFC107', r: 18 },
     quail:   { name: 'quail', shell: '#f0e6d2', yolk: '#FFA500', speckles: true, r: 12 },
     duck:    { name: 'duck', shell: '#dbe9d0', yolk: '#FF8C00', r: 20 },
@@ -73,7 +101,7 @@ toggleYolkBtn.addEventListener('click', () => {
   wrapper.className = 'group';
   const label = document.createElement('label');
   label.htmlFor = 'eggType';
-  label.textContent = 'egg';
+  label.textContent = '';
   wrapper.appendChild(label);
   wrapper.appendChild(eggTypeSelect);
   uiBar.insertBefore(wrapper, dropGroup);
@@ -200,7 +228,7 @@ dropEggBtn.addEventListener('click', ()=> spawnEgg({ type: getSelectedEggType() 
 
   toggleRainBtn.addEventListener('click', ()=>{
     eggRain = !eggRain;
-    toggleRainBtn.textContent = eggRain ? 'stop egg rain!!!' : 'start egg rain!';
+    toggleRainBtn.textContent = eggRain ? 'stop egg rain!' : 'start egg rain!';
     if(eggRain){
       rainInterval = setInterval(()=>{
         const n = Math.random()>0.85? Math.floor(randRange(3,8)) : Math.floor(randRange(1,2));
@@ -278,66 +306,92 @@ dropEggBtn.addEventListener('click', ()=> spawnEgg({ type: getSelectedEggType() 
     ctx.restore();
   }
 
-  function createSplatter(x,y,color,radius){
-    // central blob
-    const blobRadius = radius * randRange(0.6,1.1);
-    ctx.save();
+  function drawIrregularBlob(ctx, x, y, radius, points=5){
     ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.ellipse(x,y,blobRadius,blobRadius*0.7,randRange(0,Math.PI*2),0,Math.PI*2);
+    for(let i=0; i<points; i++){
+        const angle = (i / points) * Math.PI * 2;
+        const r = radius * randRange(0.5, 1.3);
+        const px = x + Math.cos(angle) * r;
+        const py = y + Math.sin(angle) * r * randRange(0.7,1.3);
+        if(i===0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.fill();
-    ctx.restore();
+}
+function drawOrganicSmudge(ctx, x, y, radius, steps = 12) {
+    ctx.beginPath();
+    let px = x;
+    let py = y;
+    for (let i = 0; i < steps; i++) {
+        // random small offset for a flowing, natural look
+        px += randRange(-radius*0.4, radius*0.4);
+        py += randRange(-radius*0.3, radius*0.5);
 
-    // droplets
-    const count = Math.floor(randRange(6,14));
-    for(let i=0;i<count;i++){
-      const angle = Math.random()*Math.PI*2;
-      const dist = randRange(radius*0.3,radius*2.2);
-      const dropr = randRange(radius*0.06,radius*0.4);
-      const dx = x + Math.cos(angle)*dist;
-      const dy = y + Math.sin(angle)*dist;
-      ctx.beginPath(); ctx.ellipse(dx,dy,dropr,dropr*randRange(0.5,1.4),0,0,Math.PI*2); ctx.fillStyle = color; ctx.fill();
-    }
+        // random ellipse size
+        const rx = randRange(radius*0.3, radius*0.7);
+        const ry = randRange(radius*0.25, radius*0.6);
+        const angle = randRange(0, Math.PI*2);
 
-    // light splatter strokes
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = color;
-    for(let i=0;i<Math.floor(radius/4);i++){
-      const a = Math.random()*Math.PI*2;
-      ctx.beginPath(); ctx.moveTo(x+Math.cos(a)*randRange(0,blobRadius), y+Math.sin(a)*randRange(0,blobRadius));
-      ctx.lineTo(x+Math.cos(a)*randRange(blobRadius,blobRadius*1.6), y+Math.sin(a)*randRange(blobRadius,blobRadius*1.6));
-      ctx.lineWidth = randRange(0.5,2.5);
-      ctx.stroke();
+        ctx.ellipse(px, py, rx, ry, angle, 0, Math.PI*2);
     }
-    ctx.restore();
-  }
+    ctx.fill();
+}
+
+function drawEggWhite(ctx, x, y, radius){
+    const grad = ctx.createRadialGradient(x, y, radius*0.9, x, y, radius);
+    grad.addColorStop(0.65, 'rgba(241, 237, 237, 0.8)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+    ctx.fillStyle = grad;
+    drawOrganicSmudge(ctx, x, y, radius*1.3, Math.floor(randRange(5,8)));
+}
+
+function createSplatter(x, y, color, radius){
+    // egg white underlay
+    if(realisticYolk){ drawEggWhite(ctx, x, y, radius);
+        }
+
+    // central yolk blob
+    ctx.fillStyle = color;
+    drawOrganicSmudge(ctx, x, y - randRange(0, radius*0.3), randRange(radius*0.8, radius*1.2), Math.floor(randRange(2,5)));
+
+    // small irregular droplets
+    const dropletCount = Math.floor(randRange(2,7));
+    for(let i=0; i<dropletCount; i++){
+        const angle = Math.random()*Math.PI*2;
+        const dist = randRange(radius*0.3,radius*2);
+        const dropr = randRange(radius*0.06,radius*0.4);
+        const dx = x + Math.cos(angle)*dist;
+        const dy = y + Math.sin(angle)*dist;
+        drawOrganicSmudge(ctx, dx, dy, dropr, Math.floor(randRange(3,6)));
+    }
+}
 
   // On impact: splatter using yolkColor AND shatter shell fragments that stay on canvas
   function handleEggHit(egg){
     const x = egg.x;
     const y = egg.impactY;
     const radius = egg.r * randRange(0.9,2.0);
-    const color = realisticYolk ? egg.yolk : colorIn.value; // hybrid mode
-    createSplatter(x, y - randRange(0, radius*0.2), color, radius);
-    createShellFragments(x, y, egg); // new function for shell debris
+    const color = realisticYolk ? egg.yolk : colorIn.value;
+    createSplatter(x, y, color, radius);
+    createShellFragments(x, y, egg);
+    shatterEgg(egg); // spawn moving fragments
 }
+
 function createShellFragments(x, y, egg){
-    const count = Math.floor(randRange(3,6));
+    const count = Math.floor(randRange(4,10));
     for(let i=0;i<count;i++){
         const angle = Math.random()*Math.PI*2;
         const dist = randRange(egg.r*0.2, egg.r*1.2);
         const size = randRange(egg.r*0.1, egg.r*0.3);
         ctx.save();
-        ctx.beginPath();
         ctx.fillStyle = egg.color;
         ctx.globalCompositeOperation = 'source-over';
-        ctx.ellipse(x + Math.cos(angle)*dist, y + Math.sin(angle)*dist, size, size*0.6, randRange(0,Math.PI*2),0,Math.PI*2);
-        ctx.fill();
+        drawIrregularBlob(ctx, x + Math.cos(angle)*dist, y + Math.sin(angle)*dist, size, Math.floor(randRange(4,6)));
         ctx.restore();
     }
 }
+
 
 
   // create moving shell fragments that will be stamped permanently when they settle
@@ -349,9 +403,9 @@ function createShellFragments(x, y, egg){
       const rot = randRange(-4,4);
       shellFragments.push({
         x: egg.x,
-        y: egg.impactY,
+        y: egg.y,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - randRange(0,1.5),
+        vy: Math.sin(angle) * speed - randRange(0,0.6),
         life: 30 + Math.random()*50,   // frames of motion
         size: Math.max(1, Math.round(egg.r * randRange(0.06, 0.28))),
         color: egg.shellColor,
@@ -377,7 +431,6 @@ function createShellFragments(x, y, egg){
       size: randRange(3,7)
     };
     ants.push(ant);
-    antCountSpan.textContent = ants.length;
   }
 
   function scheduleAntFrenzy(){
@@ -498,7 +551,6 @@ function createShellFragments(x, y, egg){
       if(a.x < -60 || a.x > rect.width + 60 || a.y < -60 || a.y > rect.height + 60 || a.life <= 0){ ants.splice(i,1); continue; }
       antDisturb(a);
     }
-    antCountSpan.textContent = ants.length;
 
     requestAnimationFrame(tick);
   }

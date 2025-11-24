@@ -1,10 +1,15 @@
 <!doctype html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>MAD ANT ART ATTACK</title>
+<title>m̲a̲d̲ ̲a̲n̲t̲ ̲a̲r̲t̲ ̲a̲t̲t̲a̲c̲k̲</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <nav id="toolbarNav" class="collapsed">
+    <div id="toolbarToggle">
+        <img id="toolbarIcon" src="assets/icons/egg1.png" alt="">
+    </div>
+
 <div class="ui" role="toolbar" aria-label="drawing controls">
 <div class="group">
 <div class="title"></div>
@@ -12,9 +17,9 @@
 
 
 <div class="group">
-<label for="mode">mode</label>
+<label for="mode"></label>
 <select id="mode" title="Tool mode">
-  <option value="egg">egg — throw paint eggs</option>
+  <option value="egg">egg — throw</option>
 <option value="pen">pen — draw</option>
 
 </select>
@@ -22,15 +27,15 @@
 
 
 <div class="group">
-<label for="color">color</label>
+<label for="color"></label>
 <input id="color" type="color" value="#ff0000" title="Choose paint color">
 </div>
 
 
 <div class="group" id="penControls">
-<label for="size">pen size</label>
+<label for="size"></label>
 <input id="size" type="range" min="1" max="80" value="6">
-<span id="sizeLabel">6</span>px
+<span id="sizeLabel"></span>
 </div>
 
 
@@ -46,11 +51,8 @@
 <button id="save" class="primary">save</button>
 </div>
 </div>
+  </nav>
 
-
-<div class="rightbar">
-<div aria-hidden="false">ants: <span id="antCount">0</span> <span class="ant-counter"></span></div>
-</div>
 
 
 <div id="stage">
@@ -59,9 +61,6 @@
 <!-- Transient overlay for eggs/ants (keeps rendering simple & stable) -->
 <canvas id="overlay"></canvas>
 </div>
-
-
-<div class="credits">• use mouse or touch •</div>
 
 
 <script src="script.js" defer></script>

@@ -142,8 +142,8 @@ canvas[id="overlay"] {
 /* Toolbar on the left */
 .ui {
   position: fixed;
-  left: 20px;
-  top: 20px;
+  left: 70px;
+  top: 15px;
   height: var(--toolbar-height);
   min-height: var(--toolbar-height);
   background: var(--ui-bg);
@@ -214,6 +214,50 @@ button.primary { background: var(--accent); border-color: transparent; color: #f
 
 /* ensure .ant-counter text sizing */
 .ant-counter { font-size: 12px; margin-left: 6px; opacity: 0.95; }
+
+#toolbarNav {
+    position: relative;
+    z-index: 9999;
+}
+
+/* the toggle icon */
+#toolbarToggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    cursor: pointer;
+    user-select: none;
+    width: 48px;       /* ← ensures full clickable area */
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#toolbarToggle img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;   /* ← ensures clicks go to the parent */
+}
+
+
+#toolbarToggle img:active {
+    transform: scale(0.9);
+}
+
+/* collapsible behavior */
+#toolbarNav.collapsed .ui {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
+#toolbarNav .ui {
+    transition: max-height .35s ease, opacity .3s ease;
+    max-height: 500px; /* must be > actual height */
+    opacity: 1;
+}
 
 /* =========================
    Footer credits overlay
