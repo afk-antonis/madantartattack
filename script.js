@@ -69,8 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * EGG TYPE DEFINITIONS
    * ------------------------------------------------------- */
   const eggTypes = {
-    white:   { name: 'white',   shell: '#fff6f6ff', yolk: '#FFD700', r: 18 },
     brown:   { name: 'brown',   shell: '#ffbd82',   yolk: '#FFC107', r: 18 },
+    white:   { name: 'white',   shell: '#fff6f6ff', yolk: '#FFD700', r: 18 },
     quail:   { name: 'quail',   shell: '#d7bf8fff', yolk: '#FFA500', speckles: true, r: 12 },
     duck:    { name: 'duck',    shell: '#d7e9caff', yolk: '#FF8C00', r: 20 },
     goose:   { name: 'goose',   shell: '#f5f5dc',   yolk: '#FFE066', r: 25 },
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wrapper.appendChild(eggTypeSelect);
   uiBar.insertBefore(wrapper, dropGroup);
 
-  const getSelectedEggType = () => eggTypeSelect.value || 'white';
+  const getSelectedEggType = () => eggTypeSelect.value || 'brown';
 
   /* -------------------------------------------------------
    * UTILS
@@ -224,8 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /* -------------------------------------------------------
    * SPAWN EGG
    * ------------------------------------------------------- */
-  function spawnEgg({ x = null, type = 'white', vx = 0, impactY = null } = {}) {
-    const eggDef = eggTypes[type] || eggTypes.white;
+  function spawnEgg({ x = null, type = 'brown', vx = 0, impactY = null } = {}) {
+    const eggDef = eggTypes[type] || eggTypes.brown;
     const rect = canvas.getBoundingClientRect();
 
     eggs.push({
