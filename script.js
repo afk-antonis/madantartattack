@@ -75,11 +75,11 @@ toggleYolkBtn.addEventListener('click', () => {
   const eggTypes = {
     white:   { img: 'egg-white.png', name: 'white', shell: '#fff6f6ff', yolk: '#FFD700', r: 18 },
     brown:   { name: 'brown', shell: '#ffbd82', yolk: '#FFC107', r: 18 },
-    quail:   { name: 'quail', shell: '#f0e6d2', yolk: '#FFA500', speckles: true, r: 12 },
-    duck:    { name: 'duck', shell: '#dbe9d0', yolk: '#FF8C00', r: 20 },
+    quail:   { name: 'quail', shell: '#d7bf8fff', yolk: '#FFA500', speckles: true, r: 12 },
+    duck:    { name: 'duck', shell: '#d7e9caff', yolk: '#FF8C00', r: 20 },
     goose:   { name: 'goose', shell: '#f5f5dc', yolk: '#FFE066', r: 25 },
     turkey:  { name: 'turkey', shell: '#eadfcb', yolk: '#FFC107', speckles: true, r: 20 },
-    emu:     { name: 'emu', shell: '#4a887b', yolk: '#DAE87C', speckles: true, r: 30 },
+    emu:     { name: 'emu', shell: '#4a887b', yolk: '#e5d739ff', speckles: true, r: 30 },
     ostrich: { name: 'ostrich', shell: '#faf0e6', yolk: '#FFD966', r: 35 }
 };
 
@@ -386,6 +386,8 @@ function createShellFragments(x, y, egg){
         const size = randRange(egg.r*0.1, egg.r*0.3);
         ctx.save();
         ctx.fillStyle = egg.color;
+        ctx.filter = "blur(0.5px)";
+
         ctx.globalCompositeOperation = 'source-over';
         drawIrregularBlob(ctx, x + Math.cos(angle)*dist, y + Math.sin(angle)*dist, size, Math.floor(randRange(4,6)));
         ctx.restore();
@@ -395,25 +397,31 @@ function createShellFragments(x, y, egg){
 
 
   // create moving shell fragments that will be stamped permanently when they settle
-  function shatterEgg(egg){
-    const fragCount = Math.floor(randRange(12, 30) * (egg.r/18)); // scale fragment count with egg size
-    for(let i=0;i<fragCount;i++){
-      const angle = Math.random() * Math.PI * 2;
-      const speed = randRange(40, 220) * (egg.r / 20) / 60; // px per frame scaled down a bit
-      const rot = randRange(-4,4);
-      shellFragments.push({
-        x: egg.x,
-        y: egg.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - randRange(0,0.6),
-        life: 30 + Math.random()*50,   // frames of motion
-        size: Math.max(1, Math.round(egg.r * randRange(0.06, 0.28))),
-        color: egg.shellColor,
-        rot,
-        settled: false
-      });
-    }
+  // create moving shell fragments that will be stamped permanently when they settle
+function shatterEgg(egg){
+  const fragCount = Math.floor(randRange(6, 12) * (egg.r/18)); // scale fragment count with egg size
+  for(let i=0;i<fragCount;i++){
+    const angle = Math.random() * Math.PI * 2;
+    // speed in px/s (bigger range so pieces throw further)
+    const speed = randRange(200, 620) * (egg.r / 20);
+    // give an upward bias so pieces shoot outward/up then arc down
+    const upwardFactor = randRange(0.35, 1.05);
+    const vx = Math.cos(angle) * speed;
+    const vy = -Math.abs(Math.sin(angle) * speed) * upwardFactor; // negative = upward
+    const rot = randRange(-6,6);
+    shellFragments.push({
+      x: egg.x + randRange(-egg.r*0.2, egg.r*0.2),           // slight jitter at spawn
+      y: egg.impactY - randRange(0, egg.r*0.25),              // start near the impact surface
+      vx, vy,                                                // px/s
+      life: randRange(0.15, 0.3),                              // life in seconds
+      size: Math.max(1, Math.round(egg.r * randRange(0.06, 0.28))),
+      color: egg.shellColor,
+      rot,
+      settled: false,
+      groundY: egg.impactY                                     // surface where it should land
+    });
   }
+}
 
   // --- Ant system (kept as-is) ---
   let antFrenzyTimer = 0;
@@ -511,32 +519,40 @@ function createShellFragments(x, y, egg){
       }
     }
 
-    // update moving shell fragments
-    for(let i=shellFragments.length-1;i>=0;i--){
-      const f = shellFragments[i];
-      if(f.life > 0){
-        // movement
-        f.vy += (gravity * 0.0009); // light gravity tuned for fragments
-        f.x += f.vx;
-        f.y += f.vy;
-        // damp velocities
-        f.vx *= 0.985;
-        f.vy *= 0.99;
-        f.rot += randRange(-0.08, 0.08);
-        f.life -= 1;
-        // small ground-detect: when near bottom or low speed, settle
-        const rect = canvas.getBoundingClientRect();
-        if(f.y >= rect.height - 1 || (f.life < 6 && Math.abs(f.vx) < 0.2 && Math.abs(f.vy) < 0.2)){
-          // stamp fragment permanently and remove from moving list
-          stampFragmentToCanvas(f);
-          shellFragments.splice(i,1);
-        }
-      } else {
-        // life exhausted — stamp and remove
+    // update moving shell fragments (time-based)
+for (let i = shellFragments.length - 1; i >= 0; i--) {
+    const f = shellFragments[i];
+
+    // Top-down motion: no gravity — just friction + initial blast
+    const friction = Math.pow(0.90, dt * 60); // slows fragments over time
+    f.vx *= friction;
+    f.vy *= friction;
+
+    // Move
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+
+    // Rotation
+    f.rot += randRange(-0.05, 0.05);
+
+    // Life timer
+    f.life -= dt;
+
+    // CONDITIONS TO STOP MOVING (top-down)
+    const nearlyStopped =
+        Math.abs(f.vx) < 5 &&
+        Math.abs(f.vy) < 5;
+
+    const lifeOver = f.life <= 0;
+
+    if (nearlyStopped || lifeOver) {
+        // Stamp where the fragment naturally stops (top-down!)
         stampFragmentToCanvas(f);
-        shellFragments.splice(i,1);
-      }
+        shellFragments.splice(i, 1);
+        continue;
     }
+}
+
 
     // ants physics
     for(let i=ants.length-1;i>=0;i--){
@@ -556,24 +572,30 @@ function createShellFragments(x, y, egg){
   }
 
   // Stamp fragment permanently onto the main canvas as a small irregular mark
-  function stampFragmentToCanvas(f){
-    ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.rotate(f.rot);
-    ctx.fillStyle = f.color;
-    // draw a small irregular polygon/rect to simulate shell piece
-    const w = Math.max(1, f.size);
-    const h = Math.max(1, Math.round(f.size*0.6));
-    // tiny jitter to make pieces irregular
-    ctx.beginPath();
-    ctx.moveTo(-w/2 + randRange(-1,1), -h/2 + randRange(-1,1));
-    ctx.lineTo(w/2 + randRange(-1,1), -h/3 + randRange(-1,1));
-    ctx.lineTo(w/4 + randRange(-1,1), h/2 + randRange(-1,1));
-    ctx.lineTo(-w/3 + randRange(-1,1), h/3 + randRange(-1,1));
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
+  // Stamp fragment permanently onto the main canvas as a small irregular mark
+function stampFragmentToCanvas(f){
+  ctx.save();
+  // ensure piece stamps at the ground surface (not past it)
+  const stampY = (typeof f.groundY === 'number') ? Math.min(f.y, f.groundY) : f.y;
+  ctx.translate(f.x, stampY);
+  ctx.rotate(f.rot);
+  ctx.fillStyle = f.color;
+  
+  // draw a small irregular polygon/rect to simulate shell piece
+  const w = Math.max(1, f.size);
+  const h = Math.max(1, Math.round(f.size*0.6));
+  ctx.filter = "blur(0.5px)";
+
+  // tiny jitter to make pieces irregular
+  ctx.beginPath();
+  ctx.moveTo(-w/2 + randRange(-1,1), -h/2 + randRange(-1,1));
+  ctx.lineTo(w/2 + randRange(-1,1), -h/3 + randRange(-1,1));
+  ctx.lineTo(w/4 + randRange(-1,1), h/2 + randRange(-1,1));
+  ctx.lineTo(-w/3 + randRange(-1,1), h/3 + randRange(-1,1));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
 
   // --- Clearing & saving ---
   clearBtn.addEventListener('click', ()=>{

@@ -68,12 +68,13 @@
    Root variables
    ========================= */
 :root {
-  --ui-bg: rgba(149, 149, 149, 0.6);
-  --ui-fg: #ffffff;
+  --ui-bg: rgba(0, 0, 0, 0);
+  --ui-fg: #000000;
   --accent: #ff4757;
   --font: 'Rag', Arial;
-  --ui-font: 'Rag', -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  --toolbar-height: 40px; /* toolbar & ant-counter matched height */
+  --ui-font: 'Rag', "Helvetica Neue", Arial;
+  --ui-font-size: 24px;
+   --toolbar-height: 40px; /* toolbar & ant-counter matched height */
   --stage-bg-top: #f8f8f4;
   --stage-bg-bottom: #ffffff;
 }
@@ -142,16 +143,16 @@ canvas[id="overlay"] {
 /* Toolbar on the left */
 .ui {
   position: fixed;
-  left: 70px;
-  top: 15px;
+  left: 80px;
+  top: 25px;
   height: var(--toolbar-height);
   min-height: var(--toolbar-height);
   background: var(--ui-bg);
   color: var(--ui-fg);
+  font-weight: 800;
   padding: 10px;
   border-radius: 10px;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 6px 24px rgba(108, 108, 108, 0.5);
+  box-shadow: transparent;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -165,22 +166,51 @@ canvas[id="overlay"] {
   gap:8px;
   align-items:center;
   white-space: nowrap;
+  font-size: 15px;
 }
-
+select {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  white-space: nowrap;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.662);
+  border: 1px solid rgb(255, 71, 87);
+  color: var(--ui-fg);
+  padding: 6px ;
+  border-radius:3.33px;
+  cursor: pointer;
+}
+input {
+  display:flex;
+  background:rgb(255, 71, 87);
+  gap:8px;
+  align-items:center;
+  white-space: nowrap;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  border: 1px solid rgb(255, 71, 87);
+  color: var(--ui-fg);
+  padding: 6px ;
+  border-radius:3.33px;
+  cursor: pointer;
+}
 /* Simple form elements */
 label { font-size: 12px; opacity: 0.95; display:inline-block; }
 input[type="range"] { width: 120px; }
 input[type="color"] { width: 36px; height: 28px; padding: 0; border-radius: 4px; border: 0; cursor:pointer; }
 
 /* Buttons */
-button, .mode-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.14);
+button, .mode-btn, .mode {
+  background: rgba(255, 255, 255, 0.662);
+  border: 1px solid rgb(255, 71, 87);
   color: var(--ui-fg);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius:3.33px;
   cursor: pointer;
-  font-size: 13px;
+  font-family: var(--ui-font);
+  font-size: 15px;
 }
 button.primary { background: var(--accent); border-color: transparent; color: #fff; }
 
@@ -227,8 +257,8 @@ button.primary { background: var(--accent); border-color: transparent; color: #f
     left: 10px;
     cursor: pointer;
     user-select: none;
-    width: 48px;       /* ← ensures full clickable area */
-    height: 48px;
+    width: 70px;       /* ← ensures full clickable area */
+    height: 70px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -241,7 +271,6 @@ button.primary { background: var(--accent); border-color: transparent; color: #f
     pointer-events: none;   /* ← ensures clicks go to the parent */
 }
 
-
 #toolbarToggle img:active {
     transform: scale(0.9);
 }
@@ -251,6 +280,7 @@ button.primary { background: var(--accent); border-color: transparent; color: #f
     max-height: 0;
     opacity: 0;
     overflow: hidden;
+    display: none;
 }
 
 #toolbarNav .ui {
